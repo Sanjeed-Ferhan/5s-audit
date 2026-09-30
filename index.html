@@ -55,7 +55,7 @@
   .findToast b{color:#ffd479}
   .countRow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
   .chip{background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:6px 11px;font-size:12px;font-weight:700}
-  .chip.high{background:rgba(214,58,58,.85)}.chip.medium{background:rgba(221,155,0,.85)}.chip.low{background:rgba(31,111,235,.85)}
+  .chip.high{background:rgba(214,58,58,.85)}.chip.critical{background:rgba(120,0,0,.95)}.chip.medium{background:rgba(221,155,0,.85)}.chip.low{background:rgba(31,111,235,.85)}
   .ctrls{display:flex;gap:10px}
   .ctrls .btn{padding:15px;font-size:15px}
   .spin{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:sp .75s linear infinite;vertical-align:-3px}
@@ -75,7 +75,12 @@
   .bar{height:12px;border-radius:7px;background:#e2e8f2;overflow:hidden;margin-bottom:9px}
   .bar>span{display:block;height:100%;border-radius:7px}
   .finding{border-left:4px solid var(--line);padding:8px 12px;margin:8px 0;background:#f8fafc;border-radius:0 8px 8px 0;font-size:13.5px;line-height:1.5}
-  .finding.high{border-color:var(--bad)}.finding.medium{border-color:var(--warn)}.finding.low{border-color:var(--brand)}
+  .finding.high{border-color:var(--bad)}.finding.critical{border-color:#7a0000;background:#fdecec}.finding.medium{border-color:var(--warn)}.finding.low{border-color:var(--brand)}
+  .finding .loc{color:var(--muted);font-size:12px;margin-top:3px}
+  .statusBadge{display:inline-block;padding:6px 14px;border-radius:20px;font-size:14px;font-weight:800;color:#fff}
+  .metaRow{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 4px}
+  .metaPill{background:#eef3fb;border:1px solid #d6e2f6;border-radius:20px;padding:6px 13px;font-size:12.5px;font-weight:700;color:#2b4a80}
+  .commentBox{background:#f7f9fc;border-left:4px solid var(--brand);border-radius:0 10px 10px 0;padding:12px 14px;font-size:14px;line-height:1.55;margin-top:6px}
   .finding .tag{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
   .finding .act{color:#0b7a41;margin-top:4px}
   .none{color:var(--good);font-size:13.5px;font-weight:600}
@@ -164,7 +169,8 @@ var LS={cfg:"fs5_config",who:"fs5_who",hist:"fs5_scans"};
 var DEFAULT_KEY="";
 var DEFAULT_MODEL="gemini-flash-latest";
 var PILLARS=["Sort","Set in Order","Shine","Standardize","Sustain"];
-var SEV={low:8,medium:16,high:28};
+var SEV={low:8,medium:16,high:28,critical:40};
+var STATUSES=["Excellent","Good","Acceptable","Needs Improvement","Poor"];
 var SCAN_INTERVAL=9000;
 
 var cfg=loadJSON(LS.cfg,{key:DEFAULT_KEY,model:DEFAULT_MODEL});
@@ -174,6 +180,8 @@ saveJSON(LS.cfg,cfg);
 
 var stream=null, scanning=false, busy=false, auto=true, timer=null;
 var findings=[], positives=[], scanCount=0, startedAt=null, lastOverall=null;
+var scoreSamples=[], lastComment="", lastConfidence="", lastStatus="";
+function resetState(){ findings=[]; positives=[]; scoreSamples=[]; scanCount=0; startedAt=Date.now(); lastComment=""; lastConfidence=""; lastStatus=""; }
 
 function loadJSON(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
 function saveJSON(k,v){localStorage.setItem(k,JSON.stringify(v))}
@@ -199,7 +207,7 @@ function openCamera(){
   var z=document.getElementById('zone').value.trim();
   if(!a||!z){toast('Enter auditor and zone.');return}
   saveJSON(LS.who,{auditor:a,zone:z});
-  findings=[];positives=[];scanCount=0;startedAt=Date.now();auto=true;
+  resetState(); auto=true;
   screen('scan'); document.getElementById('scanline').style.display='';
   document.getElementById('autoBtn').textContent='Pause';
   document.getElementById('scanState').textContent='Starting camera…';
@@ -253,7 +261,7 @@ function scanFromFile(e){
   var a=document.getElementById('auditor').value.trim()||'Auditor';
   var z=document.getElementById('zone').value.trim()||'Area';
   saveJSON(LS.who,{auditor:a,zone:z});
-  findings=[];positives=[];scanCount=0;startedAt=Date.now();auto=false;
+  resetState(); auto=false;
   screen('scan'); document.getElementById('scanline').style.display='none';
   document.getElementById('scanState').textContent='Photo mode';
   document.getElementById('video').classList.add('hidden');
@@ -278,6 +286,10 @@ function runScan(b64){
     scanCount++; lastOverall=res.overall;
     (res.findings||[]).forEach(addFinding);
     (res.positives||[]).forEach(function(p){ if(p&&positives.indexOf(p)<0) positives.push(p); });
+    if(res.scores){ var sample={}; PILLARS.forEach(function(p){ sample[p]=parseScore(res.scores[p]); }); scoreSamples.push(sample); }
+    if(res.comment) lastComment=res.comment;
+    if(res.confidence) lastConfidence=res.confidence;
+    if(res.status) lastStatus=res.status;
     updateCounts();
     announce(res);
   }).catch(function(err){
@@ -290,14 +302,18 @@ function runScan(b64){
 
 function addFinding(f){
   if(!f||!f.finding) return;
+  var sev=normSev(f.severity);
   var key=(f.pillar||'')+'|'+String(f.finding).toLowerCase().trim();
   for(var i=0;i<findings.length;i++){ if(findings[i]._key===key) return; }
-  findings.push({_key:key, pillar:PILLARS.indexOf(f.pillar)>=0?f.pillar:'Sort', finding:f.finding, severity:(f.severity||'medium'), evidence:f.evidence||'', action:f.action||''});
+  findings.push({_key:key, pillar:PILLARS.indexOf(f.pillar)>=0?f.pillar:'Sort', finding:f.finding, location:f.location||'', severity:sev, evidence:f.evidence||'', action:f.action||''});
 }
+function normSev(s){ var v=String(s||'').toLowerCase(); return (v==='low'||v==='medium'||v==='high'||v==='critical')?v:'medium'; }
+function parseScore(v){ if(v==null) return null; if(typeof v==='number') return (v>=0&&v<=5)?v:null; var s=String(v).trim().toUpperCase(); if(s==='N/A'||s==='NA'||s===''||s==='NONE') return null; var n=parseFloat(s); return (isNaN(n)||n<0||n>5)?null:n; }
 function updateCounts(){
-  var c={low:0,medium:0,high:0}; findings.forEach(function(f){ c[f.severity]=(c[f.severity]||0)+1; });
+  var c={low:0,medium:0,high:0,critical:0}; findings.forEach(function(f){ c[f.severity]=(c[f.severity]||0)+1; });
   document.getElementById('scanCount').textContent=scanCount+' scans';
   document.getElementById('countRow').innerHTML=
+    '<span class="chip critical">'+c.critical+' critical</span>'+
     '<span class="chip high">'+c.high+' high</span>'+
     '<span class="chip medium">'+c.medium+' medium</span>'+
     '<span class="chip low">'+c.low+' low</span>';
@@ -306,7 +322,7 @@ function announce(res){
   var t=document.getElementById('findToast');
   if(res.findings&&res.findings.length){
     var f=res.findings[0];
-    t.innerHTML='<b>'+esc(f.pillar)+':</b> '+esc(f.finding)+(res.findings.length>1?' <span style="color:#9fb0cc">(+'+(res.findings.length-1)+' more)</span>':'');
+    t.innerHTML='<b>'+esc(f.pillar)+':</b> '+esc(f.finding)+(f.location?' <span class="muted">('+esc(f.location)+')</span>':'')+(res.findings.length>1?' <span style="color:#9fb0cc">(+'+(res.findings.length-1)+' more)</span>':'');
   } else {
     t.innerHTML='<span style="color:#8ee6b0">No new issues found in this frame.</span>';
   }
@@ -315,38 +331,82 @@ function announce(res){
 /* ---------- AI ---------- */
 function analyze(b64){
   if(!cfg.key) return Promise.resolve(simulate());
-  var known=findings.map(function(f){return '- '+f.pillar+': '+f.finding;}).slice(-12).join('\n');
+  var known=findings.map(function(f){return '- '+f.pillar+': '+f.finding;}).slice(-15).join('\n');
   var sens=document.getElementById('sensitivity').value;
-  var sensitivity = sens==='strict'?'Report every issue you can see, including minor ones.':sens==='lenient'?'Report only significant or safety-relevant issues.':'Report clear issues; ignore very minor ones.';
-  var prompt=
-    'You are a 5S auditor reviewing a live camera frame of a manufacturing workplace floor and surrounding area.\n'+
-    'Identify 5S issues visible in THIS frame.\n\n'+
-    sensitivity+'\n\n'+
-    'Map each finding to one pillar: Sort, Set in Order, Shine, Standardize, Sustain.\n'+
-    'severity: low, medium, or high (high = safety/quality risk or major disorder).\n'+
-    'Only report what the image actually supports. If the view is unclear, too close, or shows nothing relevant, return an empty findings array.\n'+
-    (known?'Do NOT repeat these already-found issues:\n'+known+'\n':'')+
-    '\nReturn JSON only.';
+  var sensitivity = sens==='strict'?'Report every visible issue, including minor ones.':sens==='lenient'?'Report only significant or safety-relevant issues.':'Report clear issues; ignore very minor ones.';
 
+  var lines=[
+    'You are a 5S auditor reviewing a live camera frame of a manufacturing workplace floor and surrounding area.',
+    '',
+    'Check for:',
+    '1. Identify unnecessary materials, scrap, waste, empty boxes, unused tools, or abandoned items.',
+    '2. Detect materials or objects placed outside their designated location.',
+    '3. Detect any object blocking or narrowing a pedestrian walkway.',
+    '4. Detect chairs, stools, boxes, containers, or materials placed in walking paths.',
+    '5. Detect persons sitting, resting, or remaining stationary in designated walkways.',
+    '6. Check whether tools, bins, pallets, containers, and materials are properly arranged.',
+    '7. Detect poor stacking, tilted materials, unstable storage, or random placement.',
+    '8. Detect materials crossing floor-marked boundaries.',
+    '9. Check whether access to machines, electrical panels, fire extinguishers, and emergency exits is clear.',
+    '10. Detect dust, dirt, powder, flour, cement dust, oil, grease, liquid, or other contamination on the floor.',
+    '11. Detect leakage, product spillage, waste accumulation, or dirty machine surroundings.',
+    '12. Check whether floor markings and pedestrian lanes are visible and being followed.',
+    '13. Check whether storage areas, parking locations, bins, racks, and materials are properly identified.',
+    '14. Detect missing, damaged, faded, or unclear visual markings where visible.',
+    '15. Check whether materials are placed within designated storage boundaries.',
+    '16. Check whether the workplace appears clean, organized, and free from obvious clutter.',
+    '',
+    'Rules:',
+    '- Treat existing machines, pipelines, structures, fixed equipment, and approved installations in their normal positions as acceptable.',
+    '- Do not flag normal fixed items only because they are visible.',
+    '- Report only visible abnormalities, misplaced items, unnecessary materials, contamination, obstruction, or non-compliance.',
+    '- Do not guess when the image does not provide enough evidence.',
+    '- Mark unclear conditions as Not Enough Evidence.',
+    '- Classify each finding under Sort, Set in Order, Shine, Standardize, or Sustain.',
+    '- Assign severity as Low, Medium, High, or Critical.',
+    '- Provide a short recommended corrective action for every detected issue.',
+    '- Mention positive 5S practices visible in the image.',
+    '- Score each applicable 5S category from 0 to 5.',
+    '- Use N/A when a category cannot be judged from the image.',
+    '- Classify overall status as Excellent, Good, Acceptable, Needs Improvement, or Poor.',
+    '- Return the location of each abnormality, such as left side, right side, near machine, walkway, storage area, or floor.',
+    '- Provide a final short management comment summarizing the visible 5S condition.',
+    '- Include a confidence level of High, Medium, or Low based on image quality and visibility.',
+    '',
+    sensitivity,
+    (known?'Do NOT repeat these already-found issues:':'') ,
+    known,
+    '',
+    'Return JSON only.'
+  ];
+  var prompt=lines.join('\n');
+
+  var scoreProp={type:"STRING",description:"Score from 0 to 5, or N/A if this category cannot be judged from the image"};
   var body={contents:[{role:"user",parts:[{text:prompt},{inlineData:{mimeType:"image/jpeg",data:b64}}]}],
-    generationConfig:{temperature:0.3,responseMimeType:"application/json",responseSchema:{
+    generationConfig:{temperature:0.25,responseMimeType:"application/json",responseSchema:{
       type:"OBJECT",
       properties:{
         findings:{type:"ARRAY",items:{type:"OBJECT",properties:{
           pillar:{type:"STRING",enum:PILLARS},
           finding:{type:"STRING"},
-          severity:{type:"STRING",enum:["low","medium","high"]},
+          location:{type:"STRING",description:"e.g. left side, right side, near machine, walkway, storage area, floor"},
+          severity:{type:"STRING",enum:["Low","Medium","High","Critical"]},
           evidence:{type:"STRING"},
           action:{type:"STRING"}},required:["pillar","finding","severity"]}},
-        positives:{type:"ARRAY",items:{type:"STRING"}}
-      },required:["findings"]}}};
+        positives:{type:"ARRAY",items:{type:"STRING"}},
+        scores:{type:"OBJECT",properties:{Sort:scoreProp,"Set in Order":scoreProp,Shine:scoreProp,Standardize:scoreProp,Sustain:scoreProp},required:PILLARS},
+        status:{type:"STRING",enum:STATUSES},
+        management_comment:{type:"STRING"},
+        confidence:{type:"STRING",enum:["High","Medium","Low"]}
+      },required:["findings","scores","status","confidence"]}}};
 
   return geminiWithRetry(body)
     .then(function(j){
       var parts=j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts;
       if(!parts)throw new Error('No content returned.');
       var o=JSON.parse(parts.map(function(p){return p.text||''}).join(''));
-      return {findings:o.findings||[],positives:o.positives||[],overall:null};
+      return {findings:o.findings||[],positives:o.positives||[],scores:o.scores||null,
+              status:o.status||'',comment:o.management_comment||'',confidence:o.confidence||'',overall:null};
     });
 }
 function geminiCall(model,body){
@@ -372,30 +432,45 @@ function geminiWithRetry(body){
   return run();
 }
 var DEMO_FINDINGS=[
- {pillar:"Sort",finding:"Cardboard boxes and unused material stored in the walkway",severity:"high",evidence:"Boxes on floor near aisle",action:"Remove and red-tag; restore walkway"},
- {pillar:"Set in Order",finding:"Hand tools left on machine bed without a marked location",severity:"medium",evidence:"Tools on equipment",action:"Shadow board / labeled location"},
- {pillar:"Shine",finding:"Oil stain on floor near machine base",severity:"medium",evidence:"Dark patch on floor",action:"Clean and fix leak source"},
- {pillar:"Standardize",finding:"No visual standard displayed at the workstation",severity:"low",evidence:"Bare wall at station",action:"Post SWI and photo standard"},
- {pillar:"Sustain",finding:"Cleaning checklist not updated",severity:"low",evidence:"Old dates",action:"Refresh checklist and audit"}
+ {pillar:"Sort",finding:"Cardboard boxes and unused material stored in the walkway",location:"walkway, right side",severity:"high",evidence:"Boxes on floor near aisle",action:"Remove and red-tag; restore walkway"},
+ {pillar:"Set in Order",finding:"Hand tools left on machine bed without a marked location",location:"near machine",severity:"medium",evidence:"Tools on equipment",action:"Provide shadow board / labeled location"},
+ {pillar:"Shine",finding:"Oil stain on floor near machine base",location:"floor, near machine",severity:"medium",evidence:"Dark patch on floor",action:"Clean and fix leak source"},
+ {pillar:"Standardize",finding:"No visual standard displayed at the workstation",location:"workstation",severity:"low",evidence:"Bare wall at station",action:"Post SWI and photo standard"},
+ {pillar:"Sustain",finding:"Cleaning checklist not updated",location:"storage area",severity:"low",evidence:"Old dates",action:"Refresh checklist and audit"}
 ];
 function simulate(){
   var pick=DEMO_FINDINGS[Math.floor(Math.random()*DEMO_FINDINGS.length)];
-  return Promise.resolve({findings:[pick],positives:["Floor markings visible"],overall:null});
+  function r(){return Math.round((2+Math.random()*3)*10)/10;}
+  var sc={Sort:r(),'Set in Order':r(),Shine:r(),Standardize:r(),Sustain:r()};
+  return Promise.resolve({findings:[pick],positives:["Floor markings visible near aisle"],
+    scores:sc,status:"Good",comment:"Demo mode: sample condition summary. Add an AI key for real analysis.",confidence:"Medium",overall:null});
 }
 
 /* ---------- report ---------- */
-function pillarScores(){
-  var s={}; PILLARS.forEach(function(p){s[p]=100});
-  findings.forEach(function(f){ s[f.pillar]=Math.max(0,s[f.pillar]-SEV[f.severity]); });
-  return s;
+function categoryScores(){
+  var out={};
+  PILLARS.forEach(function(p){
+    var vals=[]; scoreSamples.forEach(function(sm){ if(typeof sm[p]==='number') vals.push(sm[p]); });
+    if(vals.length){
+      var avg=vals.reduce(function(a,b){return a+b},0)/vals.length;
+      out[p]={score:Math.round(avg*10)/10, pct:Math.round(avg/5*1000)/10, ai:true};
+    } else {
+      var ded=0,cnt=0; findings.forEach(function(f){ if(f.pillar===p){ ded+=SEV[f.severity]||0; cnt++; } });
+      out[p]= cnt>0 ? {score:null, pct:Math.max(0,100-ded), ai:false} : null;
+    }
+  });
+  return out;
 }
+function statusFor(pct){ return pct>=90?'Excellent':pct>=80?'Good':pct>=70?'Acceptable':pct>=50?'Needs Improvement':'Poor'; }
+function statusColor(s){ return s==='Excellent'?'var(--good)':s==='Good'?'#2f9e57':s==='Acceptable'?'var(--warn)':s==='Needs Improvement'?'#e07a1f':'var(--bad)'; }
+
 function finish(){
   stopAuto();
   if(stream){ stream.getTracks().forEach(function(t){t.stop()}); stream=null; }
-  var s=pillarScores();
-  var total=0; var used=PILLARS.filter(function(p){return true});
-  used.forEach(function(p){total+=s[p]});
-  var overall=Math.round(total/used.length*10)/10;
+  var cs=categoryScores();
+  var applicable=PILLARS.filter(function(p){ return cs[p]; });
+  var overall= applicable.length ? Math.round(applicable.reduce(function(a,p){return a+cs[p].pct},0)/applicable.length*10)/10 : 0;
+  var status= (overall>0||applicable.length)? statusFor(overall) : 'N/A';
   var who=loadJSON(LS.who,{});
 
   var dur=startedAt?Math.round((Date.now()-startedAt)/1000):0;
@@ -403,39 +478,52 @@ function finish(){
     '<div class="repHead"><div><h1>5S Audit Report</h1><div class="muted">Live floor scan</div></div>'+
     '<div class="meta"><div><b>'+esc(who.zone||'')+'</b></div><div>Auditor: '+esc(who.auditor||'')+'</div><div>'+new Date().toLocaleString()+'</div>'+
     '<div>'+scanCount+' scans · '+Math.floor(dur/60)+'m '+(dur%60)+'s</div></div></div>'+
-    '<div class="bigScore"><div class="num" style="color:'+scCol(overall)+'">'+overall+'<small>%</small></div>'+
-    '<div class="muted">Overall 5S score from '+findings.length+' finding(s).<br>Start each pillar at 100% and deduct by severity (low −8, medium −16, high −28).</div></div>';
+    '<div class="bigScore"><div class="num" style="color:'+(status==='N/A'?'var(--muted)':statusColor(status))+'">'+overall+'<small>%</small></div>'+
+    '<div><span class="statusBadge" style="background:'+(status==='N/A'?'#66738a':statusColor(status))+'">'+status+'</span>'+
+    '<div class="muted" style="margin-top:8px">Overall 5S score, using applicable categories only.<br>Based on '+scanCount+' scan(s), '+findings.length+' finding(s).</div></div></div>'+
+    '<div class="metaRow"><span class="metaPill">Confidence: '+esc(lastConfidence||'—')+'</span>'+
+    '<span class="metaPill">Categories judged: '+applicable.length+'/5</span>'+
+    '<span class="metaPill">Critical: '+findings.filter(function(f){return f.severity==='critical'}).length+'</span></div>';
 
   PILLARS.forEach(function(p){
-    var f=findings.filter(function(x){return x.pillar===p});
-    html+='<div class="pillarBlk"><div class="pbar"><span>'+p+'</span><b style="color:'+scCol(s[p])+'">'+s[p]+'%</b></div>'+
-      '<div class="bar"><span style="width:'+s[p]+'%;background:'+scCol(s[p])+'"></span></div>';
-    if(f.length){ f.forEach(function(x){ html+='<div class="finding '+x.severity+'"><span class="tag">'+esc(x.severity)+'</span><div>'+esc(x.finding)+'</div>'+(x.evidence?'<div class="muted">'+esc(x.evidence)+'</div>':'')+(x.action?'<div class="act">→ '+esc(x.action)+'</div>':'')+'</div>'; }); }
+    var c=cs[p]; var f=findings.filter(function(x){return x.pillar===p});
+    var disp = c? (c.score!=null? c.score+'/5 · '+c.pct+'%' : c.pct+'% (est.)') : 'N/A';
+    var pct = c? c.pct : 0;
+    html+='<div class="pillarBlk"><div class="pbar"><span>'+p+'</span><b style="color:'+(c?scCol(pct):'var(--muted)')+'">'+disp+'</b></div>'+
+      '<div class="bar"><span style="width:'+pct+'%;background:'+(c?scCol(pct):'#c8d0dd')+'"></span></div>';
+    if(f.length){
+      f.forEach(function(x){ html+='<div class="finding '+x.severity+'"><span class="tag">'+esc(x.severity)+'</span><div>'+esc(x.finding)+'</div>'+
+        (x.location?'<div class="loc">Location: '+esc(x.location)+'</div>':'')+
+        (x.evidence?'<div class="muted">'+esc(x.evidence)+'</div>':'')+
+        (x.action?'<div class="act">→ '+esc(x.action)+'</div>':'')+'</div>'; });
+    } else if(!c){ html+='<div class="muted">Not enough evidence to judge this category.</div>'; }
     else { html+='<div class="none">✓ No issues found</div>'; }
     html+='</div>';
   });
 
   if(positives.length){ html+='<h3>Good practices observed</h3><ul class="posList">'+positives.map(function(p){return '<li>'+esc(p)+'</li>'}).join('')+'</ul>'; }
 
+  html+='<h3>Management comment</h3><div class="commentBox">'+esc(lastComment||'No comment generated.')+'</div>';
+
   if(findings.length){
     html+='<h3>Action summary (by priority)</h3><ol class="posList">';
     findings.slice().sort(function(a,b){return sevRank(b.severity)-sevRank(a.severity)}).forEach(function(f){
-      html+='<li><b>'+esc(f.pillar)+':</b> '+esc(f.action||('Correct: '+f.finding))+'</li>';
+      html+='<li><b>'+esc(f.pillar)+':</b> '+esc(f.action||('Correct: '+f.finding))+(f.location?' <span class="muted">('+esc(f.location)+')</span>':'')+'</li>';
     });
     html+='</ol>';
   }
-  html+='<p class="muted" style="margin-top:20px;border-top:1px solid #dde3ec;padding-top:12px">Generated automatically from camera scanning. Verify visually before approving actions. Safety or quality risks should be escalated immediately.</p>';
+  html+='<p class="muted" style="margin-top:20px;border-top:1px solid #dde3ec;padding-top:12px">Generated automatically from camera scanning (confidence: '+esc(lastConfidence||'—')+'). Verify visually before approving actions. Safety or quality risks should be escalated immediately.</p>';
   html+='</div>';
 
   document.getElementById('reportBody').innerHTML=html;
   lastReport=html;
   var scans=loadJSON(LS.hist,[]);
-  scans.push({ts:new Date().toISOString(),auditor:who.auditor||'',zone:who.zone||'',overall:overall,findings:findings,positives:positives,scans:scanCount});
+  scans.push({ts:new Date().toISOString(),auditor:who.auditor||'',zone:who.zone||'',overall:overall,status:status,confidence:lastConfidence,comment:lastComment,findings:findings,positives:positives,scans:scanCount});
   saveJSON(LS.hist,scans);
   screen('report');
 }
 var lastReport="";
-function sevRank(s){return s==='high'?3:s==='medium'?2:1}
+function sevRank(s){return s==='critical'?4:s==='high'?3:s==='medium'?2:1}
 
 function downloadReport(){
   var who=loadJSON(LS.who,{});
@@ -444,9 +532,9 @@ function downloadReport(){
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([doc],{type:'text/html'}));a.download='5S_report_'+(who.zone||'area').replace(/[^\w-]+/g,'_')+'.html';a.click();
 }
 function exportCSV(){
-  var rows=[["Zone","Auditor","Pillar","Severity","Finding","Evidence","Action"]];
+  var rows=[["Zone","Auditor","Pillar","Severity","Finding","Location","Evidence","Action"]];
   var who=loadJSON(LS.who,{});
-  findings.forEach(function(f){ rows.push([who.zone||'',who.auditor||'',f.pillar,f.severity,f.finding,f.evidence,f.action]); });
+  findings.forEach(function(f){ rows.push([who.zone||'',who.auditor||'',f.pillar,f.severity,f.finding,f.location,f.evidence,f.action]); });
   var csv=rows.map(function(r){return r.map(function(c){var v=c==null?'':String(c);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')}).join('\r\n');
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='5S_findings.csv';a.click();
 }
