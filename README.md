@@ -7,14 +7,13 @@ Mobile-friendly 5S tools that use your phone camera and AI vision (Google Gemini
 - **`index.html` — Floor Scan.** Open the camera, point it at the floor/work area, and it scans live: it records 5S findings per pillar with severity, then generates a full 5S report (print / save PDF / download / CSV).
 - **`checklist.html` — Guided Audit.** One screen at a time: take a photo per 5S standard, AI scores it 0-5, then a summary. Good for a structured checklist audit.
 
-## Setup (once, on each phone)
+## Setup
 
-1. Open the site on your phone.
-2. Tap **AI key** / **AI key settings**.
-3. Paste your Google Gemini API key (create one free at https://aistudio.google.com/apikey).
-   It is stored only in your phone's browser (localStorage) and sent directly to Google.
+The Gemini API key is built into this build, so the apps work immediately.
+To use a different key, tap **AI key settings** in the app and paste a new one
+(it is then stored only in that browser).
 
-Without a key the apps run in **demo mode** (simulated results) so you can try the flow.
+Without a key the apps run in **demo mode** (simulated results).
 
 ## Notes
 

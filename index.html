@@ -135,7 +135,10 @@
   <div class="scanFrame"><span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span></div>
   <div class="scanline" id="scanline"></div>
   <div class="overlayTop">
-    <div><span class="pill"><span class="dot" id="liveDot"></span><span id="scanState">Scanning</span></span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <span class="pill"><span class="dot" id="liveDot"></span><span id="scanState">Scanning</span></span>
+      <span class="pill" id="modeTag">AI</span>
+    </div>
     <div><span class="pill" id="scanCount">0 scans</span></div>
   </div>
   <div class="overlayBottom">
@@ -166,7 +169,7 @@
 
 <script>
 var LS={cfg:"fs5_config",who:"fs5_who",hist:"fs5_scans"};
-var DEFAULT_KEY="";
+var DEFAULT_KEY="AIzaSyAdR9kvJgRj11Y-FaPvyvouHjpQgu4SYEU";
 var DEFAULT_MODEL="gemini-flash-latest";
 var PILLARS=["Sort","Set in Order","Shine","Standardize","Sustain"];
 var SEV={low:8,medium:16,high:28,critical:40};
@@ -198,7 +201,12 @@ function renderBanner(){
 }
 function setKey(){
   var k=window.prompt('Paste your Gemini API key. Leave blank for demo mode.','');
-  if(k===null)return; cfg.key=k.trim(); saveJSON(LS.cfg,cfg); renderBanner(); toast(cfg.key?'Key saved.':'Demo mode on.');
+  if(k===null)return; cfg.key=k.trim(); saveJSON(LS.cfg,cfg); renderBanner(); setModeTag(); toast(cfg.key?'Key saved. Scans will use Gemini.':'Demo mode on.');
+}
+function setModeTag(){
+  var el=document.getElementById('modeTag'); if(!el)return;
+  if(cfg.key){ el.textContent='Gemini AI'; el.style.background='rgba(18,161,80,.92)'; }
+  else { el.textContent='DEMO — no key'; el.style.background='rgba(221,155,0,.95)'; }
 }
 
 /* ---------- camera ---------- */
@@ -209,6 +217,7 @@ function openCamera(){
   saveJSON(LS.who,{auditor:a,zone:z});
   resetState(); auto=true;
   screen('scan'); document.getElementById('scanline').style.display='';
+  setModeTag();
   document.getElementById('autoBtn').textContent='Pause';
   document.getElementById('scanState').textContent='Starting camera…';
   document.getElementById('findToast').textContent='Starting camera…';
@@ -262,6 +271,7 @@ function scanFromFile(e){
   var z=document.getElementById('zone').value.trim()||'Area';
   saveJSON(LS.who,{auditor:a,zone:z});
   resetState(); auto=false;
+  setModeTag();
   screen('scan'); document.getElementById('scanline').style.display='none';
   document.getElementById('scanState').textContent='Photo mode';
   document.getElementById('video').classList.add('hidden');
@@ -543,7 +553,7 @@ function exportCSV(){
 (function(){
   var who=loadJSON(LS.who,null);
   if(who){document.getElementById('auditor').value=who.auditor||'';document.getElementById('zone').value=who.zone||''}
-  renderBanner();
+  renderBanner(); setModeTag();
 })();
 </script>
 </body>
