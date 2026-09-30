@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>5S Audit</title>
+<style>
+  :root{--brand:#1f6feb;--bg:#f2f5fa;--card:#fff;--line:#dde3ec;--txt:#131b2a;--muted:#66738a;
+        --good:#12a150;--warn:#dd9b00;--bad:#d63a3a;--shadow:0 6px 20px rgba(16,28,54,.08)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);display:flex;flex-direction:column;min-height:100vh}
+  header{background:linear-gradient(135deg,#1f6feb,#0b57d0);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  header h1{margin:0;font-size:17px}
+  header button{background:rgba(255,255,255,.16);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+  main{flex:1;width:100%;max-width:620px;margin:0 auto;padding:16px 16px 30px}
+  .screen{display:none}
+  .screen.on{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+  h2{margin:0 0 4px;font-size:20px}
+  .muted{color:var(--muted);font-size:13px;line-height:1.5}
+  label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.4px}
+  input,select{width:100%;padding:14px;border:1px solid var(--line);border-radius:11px;font-size:16px;font-family:inherit;background:#fff;color:var(--txt)}
+  .btn{width:100%;border:0;border-radius:13px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;transition:.15s;font-family:inherit}
+  .btn:active{transform:scale(.985)}
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-cam{background:var(--brand);color:#fff;padding:22px;font-size:17px}
+  .btn-ghost{background:#e8eefb;color:var(--brand)}
+  .btn-good{background:var(--good);color:#fff}
+  .btn:disabled{opacity:.55}
+  .btn-soft{background:#eef1f6;color:var(--muted)}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .center{text-align:center}
+  .progress{height:8px;background:#e2e8f2;border-radius:6px;overflow:hidden;margin-bottom:14px}
+  .progress>span{display:block;height:100%;width:0;background:var(--brand);transition:width .3s;border-radius:6px}
+  .stepTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:13px;color:var(--muted);font-weight:600}
+  .stepTop a{color:var(--brand);text-decoration:none;font-weight:700;cursor:pointer}
+  .badge{display:inline-block;font-size:12px;font-weight:800;background:#e8eefb;color:var(--brand);padding:4px 10px;border-radius:20px;margin-bottom:10px}
+  .stdTxt{font-size:18px;font-weight:750;line-height:1.35;margin:6px 0 8px}
+  .ins{font-size:14px;color:var(--muted);line-height:1.5}
+  .thumb{width:100%;max-height:300px;object-fit:cover;border-radius:13px;margin-top:14px;border:1px solid var(--line);background:#eef1f6}
+  .result{margin-top:14px;padding:15px;border-radius:13px;background:#f7f9fc;border:1px solid var(--line)}
+  .scoreRow{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+  .score{font-size:40px;font-weight:850;line-height:1}
+  .score.good{color:var(--good)}.score.warn{color:var(--warn)}.score.bad{color:var(--bad)}
+  .score sup{font-size:16px;font-weight:600;color:var(--muted)}
+  .scoreInput{width:78px;padding:10px;font-size:18px;text-align:center;border:1px solid var(--line);border-radius:10px}
+  .obs{font-size:14px;line-height:1.5;margin:6px 0}
+  .act{font-size:13.5px;line-height:1.5;color:#8a5a00;background:#fff7e4;border:1px solid #f2e2b8;border-radius:10px;padding:11px;margin-top:10px}
+  .spin{display:inline-block;width:17px;height:17px;border:2.5px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:sp .75s linear infinite;vertical-align:-3px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .banner{font-size:12.5px;border-radius:10px;padding:10px 12px;margin-bottom:14px;line-height:1.45;display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .banner.demo{background:#fff7e4;border:1px solid #f2e2b8;color:#8a5a00}
+  .banner.live{background:#e7f7ee;border:1px solid #b9e6cd;color:#0b7a41}
+  .banner a{font-weight:800;text-decoration:underline;cursor:pointer;white-space:nowrap}
+  .big{font-size:56px;font-weight:850;line-height:1;margin:6px 0}
+  .pbar{display:flex;justify-content:space-between;font-size:14px;margin:12px 0 5px;font-weight:600}
+  .bar{height:11px;border-radius:6px;background:#e2e8f2;overflow:hidden}
+  .bar>span{display:block;height:100%;border-radius:6px;transition:width .5s}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left}
+  th{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.4px}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#0c1424;color:#fff;padding:13px 20px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:.28s;z-index:99;max-width:90%;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .hidden{display:none!important}
+  .stdRow{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+  .stdRow input{margin-top:8px;padding:10px;font-size:14px}
+  .link{color:var(--brand);font-weight:700;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <h1>5S Audit</h1>
+  <button onclick="setKey()">AI key</button>
+</header>
+
+<main>
+  <!-- 1. START -->
+  <section id="scr-start" class="screen on">
+    <div id="modeBanner"></div>
+    <div class="card">
+      <h2>Start a 5S audit</h2>
+      <p class="muted">Enter your details, then take one photo per standard. The AI scores each one.</p>
+      <label>Your name</label>
+      <input id="auditor" placeholder="e.g. Sanjeed">
+      <label>Zone / Area</label>
+      <input id="zone" placeholder="e.g. Line 3 - Packing">
+      <label>What to audit</label>
+      <select id="scope"></select>
+      <div style="height:16px"></div>
+      <button class="btn btn-primary" onclick="startAudit()">Start Audit</button>
+    </div>
+    <div class="center muted">
+      <span class="link" onclick="screen('history')">History</span> &nbsp;·&nbsp;
+      <span class="link" onclick="screen('standards')">Edit standards</span>
+    </div>
+  </section>
+
+  <!-- 2. ITEM -->
+  <section id="scr-item" class="screen">
+    <div class="progress"><span id="progBar"></span></div>
+    <div class="stepTop">
+      <span id="stepLabel">Step 1 of 1</span>
+      <a onclick="skip()">Skip ▸</a>
+    </div>
+    <div class="card">
+      <span class="badge" id="itemPillar">Sort</span>
+      <div class="stdTxt" id="itemStd"></div>
+      <div class="ins" id="itemIns"></div>
+      <div id="itemBody"></div>
+    </div>
+  </section>
+
+  <!-- 3. DONE -->
+  <section id="scr-done" class="screen">
+    <div class="card center">
+      <p class="muted" style="margin:0">5S score</p>
+      <div class="big" id="doneScore">0%</div>
+      <p class="muted" id="doneSub"></p>
+    </div>
+    <div class="card" id="donePillars"></div>
+    <button class="btn btn-primary" onclick="screen('start');prepareStart()">New Audit</button>
+    <div style="height:10px"></div>
+    <button class="btn btn-ghost" onclick="screen('history')">View History</button>
+  </section>
+
+  <!-- HISTORY -->
+  <section id="scr-history" class="screen">
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <button class="btn btn-soft" onclick="screen('start')">‹ Back</button>
+        <button class="btn btn-ghost" onclick="exportResults()">Export CSV</button>
+      </div>
+      <div id="histBody"></div>
+    </div>
+  </section>
+
+  <!-- STANDARDS -->
+  <section id="scr-standards" class="screen">
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <button class="btn btn-soft" onclick="screen('start')">‹ Back</button>
+        <button class="btn btn-ghost" onclick="resetStandards()">Reset</button>
+      </div>
+      <p class="muted" style="margin-top:0">Edit the checklist. Changes are kept in this browser.</p>
+      <div id="stdBody"></div>
+    </div>
+  </section>
+</main>
+
+<input type="file" id="fileInput" accept="image/*" capture="environment" class="hidden">
+<div class="toast" id="toast"></div>
+
+<script>
+var DEFAULT_STANDARDS=[
+ ["SORT-01","Sort","Remove unnecessary tools and materials","Look for items not used in the last 30 days, obsolete jigs, broken tools, excess WIP, personal items in work zones",4,5],
+ ["SORT-02","Sort","Doubtful items are red-tagged and quarantined","Check for red tags, a quarantine area and a disposal register",2,5],
+ ["SORT-03","Sort","Only current production materials at the station","Materials match the active work order; no obsolete or mixed part bins",3,5],
+ ["SORT-04","Sort","Walkways and exits are unobstructed","Walkways clear, nothing on floor markings, exits and fire equipment clear",5,5],
+ ["SET-01","Set in Order","Every item has a marked location","Floor markings, shadow boards and labeled shelves for every tool and material",3,5],
+ ["SET-02","Set in Order","Frequently used items are at point of use","Items within easy reach and in a standardized position",3,5],
+ ["SET-03","Set in Order","Locations are labeled and visually controlled","Labels legible, consistent and matching contents",3,5],
+ ["SET-04","Set in Order","Similar items are clearly differentiated","Left/right, part numbers or colors distinguish similar components",4,5],
+ ["SET-05","Set in Order","Min/max levels marked for consumables","Reorder points and Kanban cards shown; no stockouts or overstock",2,5],
+ ["SHINE-01","Shine","Work area, machines and floors are clean","Free of oil, dust and debris on and under equipment",3,5],
+ ["SHINE-02","Shine","Cleaning tools available and stored properly","Brooms, mops and brushes available and in their place",2,5],
+ ["SHINE-03","Shine","No leakage of oil, water, air or material","No drips, puddles, stains or air leaks",3,5],
+ ["SHINE-04","Shine","Waste bins managed and segregated","Bins labeled, segregated and not overflowing",2,5],
+ ["SHINE-05","Shine","Lighting, gauges and safety devices clean and visible","Lamps clean, gauges readable, safety signs and guards visible",4,5],
+ ["STD-01","Standardize","Current work instructions displayed","SWI/SOP present at latest revision and accessible",3,5],
+ ["STD-02","Standardize","Visual standards show required condition","Before/after photo standards displayed",2,5],
+ ["STD-03","Standardize","Responsibilities and cleaning schedule posted","Duty roster and cleaning checklist signed and dated",3,5],
+ ["STD-04","Standardize","Consistent color coding and labeling","Same label rules used throughout and match plant standard",2,5],
+ ["STD-05","Standardize","Abnormalities visible and escalated","Andon/abnormality tags and escalation board present and current",3,5],
+ ["SUS-01","Sustain","Regular audits are conducted and recorded","Audit log exists, recent and signed",3,5],
+ ["SUS-02","Sustain","Findings have owners, due dates and closure","Action tracker shows owners, due dates and overdue items",4,5],
+ ["SUS-03","Sustain","Team trained and follows standards daily","Training records and visible daily compliance",3,5],
+ ["SUS-04","Sustain","Continuous improvement is active","Kaizen ideas and improvements logged and progressing",2,5],
+ ["SUS-05","Sustain","Management reviews results and trends","Trend charts posted and review minutes available",3,5]
+];
+var PILLARS=["Sort","Set in Order","Shine","Standardize","Sustain"];
+var LS={std:"fs5_standards",hist:"fs5_history",cfg:"fs5_config",who:"fs5_who"};
+
+var DEFAULT_KEY="";
+var DEFAULT_MODEL="gemini-flash-latest";
+
+var standards=loadJSON(LS.std,null)||DEFAULT_STANDARDS.map(function(r){return{id:r[0],pillar:r[1],standard:r[2],instruction:r[3],weight:r[4],maxScore:r[5]}});
+var cfg=loadJSON(LS.cfg,{key:DEFAULT_KEY,model:DEFAULT_MODEL});
+if(!cfg.key) cfg.key=DEFAULT_KEY;
+if(!cfg.model||/^gemini-(1\.5|2\.0)/.test(cfg.model)) cfg.model=DEFAULT_MODEL;
+saveJSON(LS.cfg,cfg);
+var audits=loadJSON(LS.hist,[]);
+var list=[], idx=0, results={}, saved=false, currentId=null;
+
+/* helpers */
+function loadJSON(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function saveJSON(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function esc(t){return String(t==null?"":t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function toast(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(function(){t.classList.remove('show')},2800)}
+function byId(id){for(var i=0;i<standards.length;i++)if(standards[i].id===id)return standards[i];return null}
+function scCls(s,mx){var p=mx?s/mx*100:0;return p>=80?'good':p>=50?'warn':'bad'}
+function scCol(p){return p>=80?'var(--good)':p>=50?'var(--warn)':'var(--bad)'}
+function cssId(id){return String(id).replace(/[^A-Za-z0-9_-]/g,'_')}
+function jsq(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}
+
+/* screens */
+function screen(name){
+  ["start","item","done","history","standards"].forEach(function(n){
+    document.getElementById('scr-'+n).classList.toggle('on',n===name);
+  });
+  if(name==='history')renderHistory();
+  if(name==='standards')renderStandards();
+  window.scrollTo(0,0);
+}
+
+/* setup banner + key */
+function renderBanner(){
+  var b=document.getElementById('modeBanner');
+  if(cfg.key){ b.className='banner live'; b.innerHTML='<span>✓ Real AI scoring (Gemini) is on.</span><a onclick="setKey()">Change</a>'; }
+  else { b.className='banner demo'; b.innerHTML='<span>Demo mode: photo scores are simulated.</span><a onclick="setKey()">Add AI key</a>'; }
+}
+function setKey(){
+  var k=window.prompt('Paste your Gemini API key.\nLeave blank to switch to demo mode.',"");
+  if(k===null)return;
+  cfg.key=k.trim(); saveJSON(LS.cfg,cfg); renderBanner();
+  toast(cfg.key?'AI key saved.':'Demo mode on.');
+}
+
+/* start */
+function prepareStart(){
+  var who=loadJSON(LS.who,null);
+  if(who){document.getElementById('auditor').value=who.auditor||'';document.getElementById('zone').value=who.zone||''}
+  var sel=document.getElementById('scope'); sel.innerHTML='';
+  var tot=standards.length;
+  sel.innerHTML+='<option value="">All 5S ('+tot+' items)</option>';
+  var seen=[]; standards.forEach(function(s){if(seen.indexOf(s.pillar)<0)seen.push(s.pillar)});
+  seen.forEach(function(p){ var n=standards.filter(function(s){return s.pillar===p}).length; sel.innerHTML+='<option value="'+esc(p)+'">'+esc(p)+' ('+n+')</option>'; });
+  renderBanner();
+}
+function startAudit(){
+  var auditor=document.getElementById('auditor').value.trim();
+  var zone=document.getElementById('zone').value.trim();
+  if(!auditor||!zone){toast('Please enter your name and zone.');return}
+  var scope=document.getElementById('scope').value;
+  list=standards.filter(function(s){return !scope||s.pillar===scope});
+  if(!list.length){toast('No standards to audit.');return}
+  saveJSON(LS.who,{auditor:auditor,zone:zone});
+  idx=0; results={}; saved=false;
+  window._auditor=auditor; window._zone=zone;
+  screen('item'); renderItem();
+}
+
+/* item */
+function renderItem(){
+  var s=list[idx];
+  document.getElementById('stepLabel').textContent='Step '+(idx+1)+' of '+list.length;
+  document.getElementById('progBar').style.width=(idx/list.length*100)+'%';
+  document.getElementById('itemPillar').textContent=s.pillar;
+  document.getElementById('itemStd').textContent=s.standard;
+  document.getElementById('itemIns').textContent=s.instruction;
+  var body=document.getElementById('itemBody');
+  body.innerHTML='<div style="height:12px"></div><button class="btn btn-cam" id="camBtn" onclick="pick('+jsq(s.id)+')">📷 Take Photo</button>';
+  if(results[s.id]) body.innerHTML='<img class="thumb" src="'+results[s.id].dataUrl+'">'+resultHtml(s,results[s.id]);
+}
+function pick(id){currentId=id;document.getElementById('fileInput').click()}
+document.getElementById('fileInput').addEventListener('change',function(e){
+  var f=e.target.files&&e.target.files[0]; if(f&&currentId)handlePhoto(currentId,f); e.target.value='';
+});
+function handlePhoto(id,file){
+  var btn=document.getElementById('camBtn');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Preparing...'}
+  var rd=new FileReader();
+  rd.onload=function(ev){
+    var img=new Image();
+    img.onload=function(){
+      var mw=1280,sc=Math.min(1,mw/img.width),w=Math.round(img.width*sc),h=Math.round(img.height*sc);
+      var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+      var url=c.toDataURL('image/jpeg',0.82), b64=url.split(',')[1];
+      document.getElementById('itemBody').innerHTML='<img class="thumb" src="'+url+'"><div class="muted center" style="margin-top:12px"><span class="spin" style="border-color:rgba(31,111,235,.3);border-top-color:#1f6feb"></span> Scoring against the standard...</div>';
+      score(id,b64).then(function(r){
+        r.dataUrl=url; results[id]=r;
+        document.getElementById('itemBody').innerHTML='<img class="thumb" src="'+url+'">'+resultHtml(byId(id),r);
+        toast('Scored '+r.score+'/5');
+      }).catch(function(err){
+        renderItem(); toast('Scoring failed: '+err.message);
+      });
+    };
+    img.src=ev.target.result;
+  };
+  rd.readAsDataURL(file);
+}
+function resultHtml(s,r){
+  return '<div class="result">'+
+    '<div class="scoreRow"><span class="score '+scCls(r.score,s.maxScore)+'" id="sc-'+cssId(s.id)+'">'+r.score+'<sup>/'+s.maxScore+'</sup></span>'+
+    '<div><div class="muted">Adjust if needed</div><input class="scoreInput" type="number" min="0" max="'+s.maxScore+'" value="'+r.score+'" onchange="override(\''+jsq(s.id)+'\',this.value)"></div></div>'+
+    '<div class="obs"><b>Observations:</b> '+esc(r.observations||'-')+'</div>'+
+    (r.correctiveAction?'<div class="act"><b>Corrective action:</b> '+esc(r.correctiveAction)+'</div>':'')+
+    (r.demo?'<div class="muted" style="margin-top:8px">Demo score (no AI). Add a key for real analysis.</div>':'')+
+    '</div>'+
+    '<div style="height:14px"></div>'+
+    '<button class="btn btn-primary" onclick="next()">Next ▸</button>'+
+    '<div style="height:10px"></div>'+
+    '<button class="btn btn-soft" onclick="pick('+jsq(s.id)+')">Re-take photo</button>';
+}
+function override(id,val){
+  var s=byId(id); if(!s||!results[id])return;
+  var v=Math.max(0,Math.min(s.maxScore,Number(val)||0)); results[id].score=v;
+  var el=document.getElementById('sc-'+cssId(id)); if(el){el.className='score '+scCls(v,s.maxScore);el.innerHTML=v+'<sup>/'+s.maxScore+'</sup>'}
+}
+function next(){ idx++; if(idx>=list.length){finish()} else {screen('item');renderItem()} }
+function skip(){ next(); }
+
+/* done */
+function finish(){
+  var tw=0,tm=0,pw={},pm={};
+  Object.keys(results).forEach(function(id){
+    var s=byId(id); if(!s)return; var w=Number(s.weight)||1,mx=Number(s.maxScore)||5;
+    tw+=w*results[id].score; tm+=w*mx;
+    pw[s.pillar]=(pw[s.pillar]||0)+w*results[id].score; pm[s.pillar]=(pm[s.pillar]||0)+w*mx;
+  });
+  var overall=tm?Math.round(tw/tm*1000)/10:0;
+  document.getElementById('doneScore').textContent=overall+'%';
+  document.getElementById('doneScore').style.color=scCol(overall);
+  var scoped=list.length, scored=Object.keys(results).length;
+  document.getElementById('doneSub').textContent=scored+' of '+scoped+' items scored · '+esc(window._zone||'');
+
+  var pct={}; var seen=[]; list.forEach(function(s){if(seen.indexOf(s.pillar)<0)seen.push(s.pillar)});
+  var html='<h2 style="font-size:15px;margin-bottom:12px">By pillar</h2>';
+  seen.forEach(function(p){ var v=pm[p]?Math.round(pw[p]/pm[p]*1000)/10:0; pct[p]=v;
+    html+='<div class="pbar"><span>'+esc(p)+'</span><b>'+v+'%</b></div><div class="bar"><span style="width:'+v+'%;background:'+scCol(v)+'"></span></div>';
+  });
+  document.getElementById('donePillars').innerHTML=html;
+
+  if(!saved && scored>0){
+    audits.push({ts:new Date().toISOString(),auditor:window._auditor||'',zone:window._zone||'',overall:overall,pillarPct:pct,listIds:list.map(function(s){return s.id}),results:results});
+    saveJSON(LS.hist,audits); saved=true;
+  }
+  screen('done');
+}
+
+/* history */
+function renderHistory(){
+  var host=document.getElementById('histBody');
+  if(!audits.length){host.innerHTML='<p class="muted">No audits yet.</p>';return}
+  var html='<h2 style="font-size:15px">'+audits.length+' audit(s)</h2><table><thead><tr><th>Date</th><th>Zone</th><th>Score</th></tr></thead><tbody>';
+  audits.slice().reverse().slice(0,30).forEach(function(a){
+    html+='<tr><td>'+new Date(a.ts).toLocaleDateString()+'</td><td>'+esc(a.zone)+'</td><td style="font-weight:800;color:'+scCol(a.overall)+'">'+a.overall+'%</td></tr>';
+  });
+  html+='</tbody></table>';
+  host.innerHTML=html;
+}
+function exportResults(){
+  if(!audits.length){toast('No results yet.');return}
+  var rows=[["Timestamp","Auditor","Zone","Pillar","StandardID","Standard","Weight","MaxScore","Score","Observations","CorrectiveAction"]];
+  audits.forEach(function(a){
+    Object.keys(a.results).forEach(function(id){
+      var s=byId(id); if(!s)return; var r=a.results[id];
+      rows.push([a.ts,a.auditor,a.zone,s.pillar,id,s.standard,s.weight,s.maxScore,r.score,r.observations,r.correctiveAction]);
+    });
+  });
+  var csv=rows.map(function(r){return r.map(function(c){var v=c==null?'':String(c);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(',')}).join('\r\n');
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='5s_audit_results.csv';a.click();
+}
+
+/* standards editor (simple) */
+function renderStandards(){
+  var host=document.getElementById('stdBody'); var h='';
+  standards.forEach(function(s,i){
+    h+='<div class="stdRow">'+
+      '<div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:12px;color:var(--muted)">'+esc(s.id)+' · '+esc(s.pillar)+'</b>'+
+      '<span class="link" style="font-size:12px;color:var(--bad)" onclick="delStd('+i+')">Delete</span></div>'+
+      '<input value="'+esc(s.standard)+'" oninput="editStd('+i+',\'standard\',this.value)" placeholder="Standard">'+
+      '<input value="'+esc(s.instruction)+'" oninput="editStd('+i+',\'instruction\',this.value)" placeholder="What to check">'+
+      '</div>';
+  });
+  h+='<button class="btn btn-ghost" onclick="addStd()">+ Add standard</button>';
+  host.innerHTML=h;
+}
+function editStd(i,f,v){standards[i][f]=v;saveJSON(LS.std,standards)}
+function addStd(){standards.push({id:'NEW-'+(standards.length+1),pillar:PILLARS[0],standard:'',instruction:'',weight:3,maxScore:5});saveJSON(LS.std,standards);renderStandards()}
+function delStd(i){standards.splice(i,1);saveJSON(LS.std,standards);renderStandards()}
+function resetStandards(){if(!confirm('Reset to the default 24 standards?'))return;standards=DEFAULT_STANDARDS.map(function(r){return{id:r[0],pillar:r[1],standard:r[2],instruction:r[3],weight:r[4],maxScore:r[5]}});saveJSON(LS.std,standards);renderStandards();toast('Reset done.')}
+
+/* AI scoring */
+function score(id,b64){
+  var s=byId(id);
+  if(!cfg.key) return Promise.resolve(simulate(s));
+  var prompt="You are a strict 5S workplace auditor. Judge the photo ONLY against the standard below.\n\nPILLAR: "+s.pillar+"\nSTANDARD: "+s.standard+"\nWHAT TO CHECK: "+s.instruction+
+    "\n\nRubric 0-5: 0 absent; 1 major non-conformance; 2 poor, several issues; 3 acceptable minimum with gaps; 4 good, minor gaps; 5 fully meets. "+
+    "If the photo does not clearly show evidence, say so and score conservatively (<=2). Return JSON only.";
+  var body={contents:[{role:"user",parts:[{text:prompt},{inlineData:{mimeType:"image/jpeg",data:b64}}]}],
+    generationConfig:{temperature:0.2,responseMimeType:"application/json",responseSchema:{type:"OBJECT",
+      properties:{score:{type:"INTEGER"},observations:{type:"STRING"},corrective_action:{type:"STRING"}},required:["score","observations","corrective_action"]}}};
+  var url="https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(cfg.model)+":generateContent?key="+encodeURIComponent(cfg.key);
+  return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(res){return res.text().then(function(t){if(!res.ok){var m=t;try{m=JSON.parse(t).error.message}catch(e){}throw new Error('Gemini '+res.status+': '+m)}return JSON.parse(t)})})
+    .then(function(j){
+      var parts=j.candidates&&j.candidates[0]&&j.candidates[0].content&&j.candidates[0].content.parts;
+      if(!parts)throw new Error('No content returned.');
+      var o=JSON.parse(parts.map(function(p){return p.text||''}).join(''));
+      return {score:Math.max(0,Math.min(s.maxScore,Number(o.score)||0)),observations:o.observations||'',correctiveAction:o.corrective_action||'',demo:false};
+    });
+}
+function simulate(s){var v=Math.min(Math.round(Math.random()*3)+2,s.maxScore);
+  return {score:v,observations:'Demo mode: sample result for "'+s.standard+'". Add an AI key for real photo scoring.',correctiveAction:v<5?'Correct items related to: '+s.standard:'',demo:true};}
+
+/* init */
+prepareStart();
+</script>
+</body>
+</html>
