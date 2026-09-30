@@ -1,22 +1,22 @@
 # 5S Camera Audit
 
-Mobile-friendly 5S tools that use your phone camera and AI vision (Google Gemini).
+Camera + AI (Google Gemini) 5S auditing apps.
 
-## Apps
+- **`/` (index.html) — Floor Scan:** open the camera, scan the floor, get findings and a full 5S report.
+- **`/checklist.html` — Guided checklist:** one photo per 5S standard, AI scores 0-5, summary.
 
-- **`index.html` — Floor Scan.** Open the camera, point it at the floor/work area, and it scans live: it records 5S findings per pillar with severity, then generates a full 5S report (print / save PDF / download / CSV).
-- **`checklist.html` — Guided Audit.** One screen at a time: take a photo per 5S standard, AI scores it 0-5, then a summary. Good for a structured checklist audit.
+## Save results to a Google Sheet
 
-## Setup
+1. Create a Google Sheet at https://sheets.new
+2. **Extensions → Apps Script**, paste the `SheetSaver.gs` code, save.
+3. **Deploy → New deployment → Web app** → Execute as **Me**, access **Anyone**.
+   Copy the Web app URL (ends with `/exec`).
+4. Open the app → **Google Sheet settings** → paste the URL.
 
-The Gemini API key is built into this build, so the apps work immediately.
-To use a different key, tap **AI key settings** in the app and paste a new one
-(it is then stored only in that browser).
+Finished audits are appended automatically (tab **Audits**), and each finding is
+logged (tab **Findings**). You can also tap **Save to Google Sheet** on the report.
 
-Without a key the apps run in **demo mode** (simulated results).
+## Gemini API key
 
-## Notes
-
-- Camera access requires HTTPS — GitHub Pages provides this.
-- Data stays in your browser. Use the in-app CSV / report export to keep records.
-- The API key is entered per device and is not stored in this repository.
+Built into this build so it works on phones immediately. To use a different key,
+open **AI key settings** in the app and paste a new one (stored in that browser only).
